@@ -94,17 +94,58 @@ def extract_video_id(url):
 # function names across versions, so we try the newer style first and fall back
 # to the older style. Either way we end up with a simple list of caption pieces,
 # each having: text, start (seconds), duration (seconds).
+#
+# OPTIONAL PROXY SUPPORT (free to add, no service required):
+#   YouTube sometimes blocks requests from shared cloud servers. If you have a
+#   proxy URL, you can route requests through it. You do NOT need one to use this
+#   tool -- if no proxy is configured, everything works exactly as before.
+#
+#   To use a proxy, set an environment variable before running:
+#       export YT_PROXY="http://user:pass@host:port"     (a-Shell / terminal)
+#   or, in the web app, add it to Streamlit "secrets" as YT_PROXY (see README).
+#
+#   Honest note: a proxy that actually gets past YouTube's blocking is normally
+#   a *residential* proxy, which costs money. Free public proxies are usually
+#   dead, slow, or unsafe, so this is here as an option -- not a magic fix.
 
-def fetch_transcript(video_id):
+import os   # used to read the optional YT_PROXY environment variable
+
+
+def get_proxy_url():
+    """Return the proxy URL from the YT_PROXY environment variable, or None.
+    Returning None means 'no proxy' -- normal direct connection."""
+    value = os.environ.get("YT_PROXY", "").strip()
+    return value or None
+
+
+def fetch_transcript(video_id, proxy_url=None):
     """Return a list of dicts like {'text': ..., 'start': ..., 'duration': ...}.
+    If proxy_url is given (or YT_PROXY is set), requests go through that proxy.
     Raises an exception (handled in main) if captions can't be retrieved."""
 
     # Import here so that a missing library produces a friendly message in main()
     from youtube_transcript_api import YouTubeTranscriptApi
 
+    # Fall back to the environment variable if no proxy was passed in directly.
+    if proxy_url is None:
+        proxy_url = get_proxy_url()
+
+    # A "proxies dict" is what the older API and the requests library expect:
+    # the same URL is used for both http and https traffic.
+    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+
     # ---- Newer versions (1.x): create an instance, then call .fetch() ----
     try:
-        api = YouTubeTranscriptApi()
+        if proxy_url:
+            # The 1.x API takes a proxy_config object instead of a dict.
+            from youtube_transcript_api.proxies import GenericProxyConfig
+            api = YouTubeTranscriptApi(
+                proxy_config=GenericProxyConfig(
+                    http_url=proxy_url, https_url=proxy_url
+                )
+            )
+        else:
+            api = YouTubeTranscriptApi()
         fetched = api.fetch(video_id)          # returns a FetchedTranscript object
         # Convert each snippet into a plain dictionary so the rest of the
         # script doesn't care which library version we used.
@@ -119,9 +160,14 @@ def fetch_transcript(video_id):
     except AttributeError:
         # This version doesn't have .fetch() -- fall through to the old API.
         pass
+    except ImportError:
+        # This 1.x-ish version lacks GenericProxyConfig -- fall back to old API,
+        # which accepts a plain proxies dict instead.
+        pass
 
     # ---- Older versions (0.6.x): a single class method that returns dicts ----
-    return YouTubeTranscriptApi.get_transcript(video_id)
+    # It accepts the proxies dict directly (or None for a direct connection).
+    return YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
 
 
 # =============================================================================

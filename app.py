@@ -18,10 +18,21 @@
 
 import io       # lets us build the CSV file in memory (no saving to disk needed)
 import csv      # same CSV writer used by the command-line version
+import os       # lets us pass a proxy setting down to the fetch logic
 import streamlit as st
 
 # Reuse the building blocks we already wrote and tested in yt_transcript.py.
 from yt_transcript import extract_video_id, fetch_transcript, seconds_to_mmss
+
+# --- Optional proxy: pick it up from Streamlit "secrets" if you set one there.
+# This is completely optional. If you never set YT_PROXY, the app works normally
+# with a direct connection. See README for how/why you might add a proxy.
+try:
+    if "YT_PROXY" in st.secrets:
+        os.environ["YT_PROXY"] = str(st.secrets["YT_PROXY"])
+except Exception:
+    # No secrets file configured -- that's fine, just means no proxy.
+    pass
 
 
 # -----------------------------------------------------------------------------
@@ -76,6 +87,22 @@ url = st.text_input(
     placeholder="https://youtu.be/dQw4w9WgXcQ",
 )
 
+# Optional, collapsed by default: a place to paste a proxy URL if YouTube ever
+# blocks the server. Most people will never open this. Leaving it blank uses a
+# normal direct connection (or whatever YT_PROXY secret you may have set).
+with st.expander("Advanced: use a proxy (optional)"):
+    st.caption(
+        "Only needed if you see a 'temporarily blocked' message. Paste a proxy "
+        "URL like http://user:pass@host:port . Leave blank for a normal "
+        "connection. Note: proxies that reliably bypass YouTube are usually paid "
+        "residential ones — free public proxies rarely work."
+    )
+    proxy_input = st.text_input(
+        "Proxy URL",
+        value=os.environ.get("YT_PROXY", ""),
+        placeholder="http://user:pass@host:port",
+    )
+
 go = st.button("Get transcript", type="primary", use_container_width=True)
 
 
@@ -100,9 +127,12 @@ if go:
         st.stop()
 
     # 2) Fetch the captions, showing a spinner while it works.
+    #    A proxy typed into the Advanced box (if any) takes priority; otherwise
+    #    fetch_transcript falls back to the YT_PROXY env var / secret, or none.
+    proxy_url = (proxy_input or "").strip() or None
     try:
         with st.spinner("Fetching captions…"):
-            entries = fetch_transcript(video_id)
+            entries = fetch_transcript(video_id, proxy_url=proxy_url)
     except Exception as e:
         # Same friendly error categories as the command-line version.
         error_name = type(e).__name__

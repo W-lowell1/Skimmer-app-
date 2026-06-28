@@ -76,6 +76,35 @@ It saves a `<video_id>.csv` to the current folder and prints a clean
 
 ---
 
+## Optional: using a proxy (if YouTube blocks the server)
+
+You do **not** need this to use the tool. It only matters if you see a
+"temporarily blocked" message, which can happen on free cloud hosting because
+YouTube rate-limits shared server IPs.
+
+**Honest note:** a proxy that reliably gets past YouTube's blocking is normally
+a *residential* proxy, which costs money. Free public proxies are usually dead,
+slow, or unsafe — so this is an option, not a guaranteed fix. The proxy support
+itself is free and built in; if you don't set one, nothing changes.
+
+If you do have a proxy URL, set it in whichever way matches how you're running:
+
+- **Command-line (a-Shell / terminal):**
+  ```
+  export YT_PROXY="http://user:pass@host:port"
+  python yt_transcript.py "https://youtu.be/VIDEOID"
+  ```
+
+- **Web app (Streamlit), two ways:**
+  - Quick: tap **"Advanced: use a proxy (optional)"** in the app and paste it.
+  - Permanent: in your Streamlit Community Cloud app, open
+    **Settings → Secrets** and add a line:
+    ```
+    YT_PROXY = "http://user:pass@host:port"
+    ```
+
+---
+
 ## Supported link formats
 
 Both versions understand: `youtube.com/watch?v=…`, `youtu.be/…`,
