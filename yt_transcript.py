@@ -184,6 +184,40 @@ def seconds_to_mmss(seconds):
 
 
 # =============================================================================
+# SECTION 3b -- Build the text outputs (plain text and Markdown)
+# =============================================================================
+# These return strings so they can be printed, saved to a file, OR offered as a
+# download in the web app -- one source of truth shared everywhere.
+
+def build_plain_text(entries):
+    """Return the readable transcript: one '[mm:ss] text' line per caption."""
+    lines = []
+    for entry in entries:
+        timestamp = seconds_to_mmss(entry["start"])
+        text = entry["text"].replace("\n", " ").strip()
+        lines.append(f"[{timestamp}] {text}")
+    return "\n".join(lines)
+
+
+def build_markdown(video_id, entries, source_url=None):
+    """Return a Markdown document with a small metadata header followed by the
+    timestamped transcript. This is the best format for dropping into a
+    project's 'context folder' -- it carries the source link with it."""
+    url = source_url or f"https://www.youtube.com/watch?v={video_id}"
+    header = [
+        f"# Transcript: {video_id}",
+        "",
+        f"- Source: {url}",
+        f"- Video ID: {video_id}",
+        f"- Lines: {len(entries)}",
+        "",
+        "---",
+        "",
+    ]
+    return "\n".join(header) + "\n" + build_plain_text(entries) + "\n"
+
+
+# =============================================================================
 # SECTION 4 -- Save the transcript to a CSV file
 # =============================================================================
 
@@ -201,6 +235,14 @@ def write_csv(video_id, entries):
             # Collapse any internal newlines so each caption stays on one CSV row.
             text = entry["text"].replace("\n", " ").strip()
             writer.writerow([timestamp, text])
+    return filename
+
+
+def write_markdown(video_id, entries, source_url=None):
+    """Write a '<video_id>.md' context file. Returns the filename."""
+    filename = f"{video_id}.md"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(build_markdown(video_id, entries, source_url))
     return filename
 
 
@@ -285,22 +327,21 @@ def main():
         print("ERROR: No caption text was returned for this video.")
         return 1
 
-    # ---- 5d. Save the CSV file ----
+    # ---- 5d. Save the output files (CSV for data, Markdown for context folders) ----
     try:
         csv_name = write_csv(video_id, entries)
-        print(f"Saved CSV: {csv_name}  ({len(entries)} lines)\n")
+        md_name = write_markdown(video_id, entries, source_url=url)
+        print(f"Saved CSV:      {csv_name}  ({len(entries)} lines)")
+        print(f"Saved Markdown: {md_name}\n")
     except OSError as e:
-        print(f"ERROR: Could not write the CSV file: {e}")
+        print(f"ERROR: Could not write the output files: {e}")
         return 1
 
     # ---- 5e. Print the clean, copy-pasteable transcript ----
     print("=" * 60)
     print("TRANSCRIPT (select and copy the lines below)")
     print("=" * 60)
-    for entry in entries:
-        timestamp = seconds_to_mmss(entry["start"])
-        text = entry["text"].replace("\n", " ").strip()
-        print(f"[{timestamp}] {text}")
+    print(build_plain_text(entries))
 
     return 0   # 0 means "finished successfully"
 

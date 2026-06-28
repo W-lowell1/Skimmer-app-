@@ -22,7 +22,13 @@ import os       # lets us pass a proxy setting down to the fetch logic
 import streamlit as st
 
 # Reuse the building blocks we already wrote and tested in yt_transcript.py.
-from yt_transcript import extract_video_id, fetch_transcript, seconds_to_mmss
+from yt_transcript import (
+    extract_video_id,
+    fetch_transcript,
+    seconds_to_mmss,
+    build_plain_text,
+    build_markdown,
+)
 
 # --- Optional proxy: pick it up from Streamlit "secrets" if you set one there.
 # This is completely optional. If you never set YT_PROXY, the app works normally
@@ -66,17 +72,8 @@ def build_csv_text(entries):
     return buffer.getvalue()
 
 
-# -----------------------------------------------------------------------------
-# Helper: build the clean "[mm:ss] text" transcript as one big string.
-# -----------------------------------------------------------------------------
-def build_plain_text(entries):
-    """Return the readable transcript, one '[mm:ss] text' line per caption."""
-    lines = []
-    for entry in entries:
-        timestamp = seconds_to_mmss(entry["start"])
-        text = entry["text"].replace("\n", " ").strip()
-        lines.append(f"[{timestamp}] {text}")
-    return "\n".join(lines)
+# (The plain-text and Markdown builders live in yt_transcript.py and are
+#  imported above, so the app and the command-line tool stay perfectly in sync.)
 
 
 # -----------------------------------------------------------------------------
@@ -166,34 +163,44 @@ if go:
         st.error("No caption text was returned for this video.")
         st.stop()
 
-    # 3) Success! Build both output formats.
+    # 3) Success! Build every output format.
     csv_text = build_csv_text(entries)
     plain_text = build_plain_text(entries)
+    markdown_text = build_markdown(video_id, entries, source_url=url)
 
     st.success(f"Got {len(entries)} caption lines for video {video_id}.")
 
-    # Two download buttons, side by side: CSV and plain text.
-    col1, col2 = st.columns(2)
+    # Three download buttons. Markdown is first because it's the best one to
+    # drop straight into a project's context folder (it keeps the source link).
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.download_button(
-            "⬇️ Download CSV",
+            "⬇️ Markdown",
+            data=markdown_text,
+            file_name=f"{video_id}.md",
+            mime="text/markdown",
+            use_container_width=True,
+            help="Best for context folders — includes the source link.",
+        )
+    with col2:
+        st.download_button(
+            "⬇️ CSV",
             data=csv_text,
             file_name=f"{video_id}.csv",
             mime="text/csv",
             use_container_width=True,
         )
-    with col2:
+    with col3:
         st.download_button(
-            "⬇️ Download text",
+            "⬇️ Text",
             data=plain_text,
             file_name=f"{video_id}.txt",
             mime="text/plain",
             use_container_width=True,
         )
 
-    # 4) Show the transcript in a big text box you can select and copy.
-    st.text_area(
-        "Transcript (tap inside, then Select All to copy)",
-        value=plain_text,
-        height=400,
-    )
+    # 4) One-tap copy. st.code() shows a copy icon in its top-right corner that
+    #    copies the WHOLE block in a single tap -- the easiest way to grab it on
+    #    a phone and paste it into a note or context file.
+    st.markdown("**Transcript** — tap the copy icon (top-right of the box) to copy it all:")
+    st.code(plain_text, language=None)

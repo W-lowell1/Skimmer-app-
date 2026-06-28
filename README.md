@@ -41,8 +41,16 @@ You now have an app icon. Tapping it opens the tool full-screen, like a real app
 
 ### Step 3: Use it
 
-Paste a YouTube link, tap **Get transcript**, then copy the text or download the
-CSV / text file (iOS saves downloads via the Files app or the Share sheet).
+Paste a YouTube link, tap **Get transcript**, then either:
+
+- **Copy everything in one tap** — tap the copy icon in the top-right corner of
+  the transcript box, and paste it straight into a note or a project file.
+- **Download a file** — choose **Markdown**, **CSV**, or **Text**. iOS saves
+  downloads via the Files app or the Share sheet.
+
+**Building context folders:** the **Markdown** download is made for this. Each
+`.md` file starts with the source link and video ID, so when you drop several of
+them into a project folder, each transcript documents where it came from.
 
 > **Heads-up about free hosting:** YouTube sometimes blocks transcript requests
 > coming from shared cloud servers. If you ever see a "temporarily blocked"
@@ -71,8 +79,9 @@ or passing the URL directly (keep the quotes):
 python yt_transcript.py "https://youtu.be/dQw4w9WgXcQ"
 ```
 
-It saves a `<video_id>.csv` to the current folder and prints a clean
-`[mm:ss] text` transcript you can select and copy.
+It saves both a `<video_id>.csv` and a `<video_id>.md` (Markdown, with the
+source link in a header — ideal for context folders) to the current folder, and
+prints a clean `[mm:ss] text` transcript you can select and copy.
 
 ---
 
